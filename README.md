@@ -2,10 +2,9 @@
 
 Java 21 / Spring Boot / PostgreSQL backend, built with Maven.
 
-> **Status:** the development harness (standards, CI, PR template, review guide, Claude
-> Code agent and commands) is in place. Application code has not been added yet. The
-> first code PR must follow the bootstrap requirements in
-> [CLAUDE.md](CLAUDE.md#bootstrapping-the-project-first-code-pr-only).
+> **Status:** the development harness and the Spring Boot project skeleton (build, Maven
+> wrapper, Problem Details error handling, health check, Testcontainers tests) are in
+> place. No features have been implemented yet.
 
 ## Prerequisites
 

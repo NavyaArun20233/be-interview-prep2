@@ -6,14 +6,22 @@ Human-oriented setup lives in [README.md](README.md); the review rubric lives in
 
 ## Repository status
 
-The repository currently contains **no application code**, only this harness
-(instructions, CI, PR template, review guide, Claude Code agent and commands). The target
-stack is fixed:
+The Spring Boot **project skeleton exists; no features yet**. It contains `Application`,
+`config/ClockConfig` (the `Clock` bean) and `ValidationConfig`, the shared `dto/PageResponse`,
+`application.yml`, an empty `db/migration/` (V1 is reserved for the first feature), and the
+generic error infrastructure in `exception/`: `GlobalExceptionHandler` (RFC 9457 Problem
+Details for validation, malformed JSON, type mismatch, 404/405/415, optimistic locking and
+500), `FieldErrorResponse`, `FieldValidationException` (400 with `errors`), and the abstract
+bases `ResourceNotFoundException` (404), `ResourceConflictException` (409),
+`BusinessRuleViolationException` (422) and `ResourceGoneException` (410). **Features subclass
+these bases** (e.g. `TaskNotFoundException extends ResourceNotFoundException`) instead of
+editing `GlobalExceptionHandler`. Tests: `ApplicationIT` (context + `/actuator/health`
+against Testcontainers PostgreSQL) and `GlobalExceptionHandlerTest`. The stack is fixed:
 
 | Concern            | Choice                                                        |
 |--------------------|---------------------------------------------------------------|
 | Language           | Java 21 (LTS)                                                  |
-| Framework          | Spring Boot 4.1 (pinned in `pom.xml` once created; Jackson 3, Testcontainers 2) |
+| Framework          | Spring Boot 4.1.1 (pinned in `pom.xml`; Jackson 3, Testcontainers 2) |
 | Build              | Maven via the wrapper (`./mvnw`). Never rely on a global `mvn` |
 | Database           | PostgreSQL                                                     |
 | Migrations         | Flyway (`src/main/resources/db/migration`)                     |
@@ -212,7 +220,6 @@ Run from the root of the worktree you are working in.
 | Run locally                     | `./mvnw spring-boot:run` (needs PostgreSQL; see README) |
 
 On Windows PowerShell use `.\mvnw.cmd`. Integration tests require Docker running.
-Until `pom.xml` exists these commands do not work. Say so rather than pretending.
 
 ## Worktrees: one task = one branch = one worktree
 
