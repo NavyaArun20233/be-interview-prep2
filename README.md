@@ -49,7 +49,7 @@ Desktop/
 
 1. From the main checkout: `git switch main && git pull --ff-only`, then
    `git worktree add -b feature/<task> ../be-interview-prep2.worktrees/feature-<task> main`
-   (Claude Code: `/start-task feature/<task>`).
+   (Claude Code: `/start-task feature/<task>`; `.claude/` is local-only and git-ignored).
 2. Work only inside that worktree. Implement with tests, following [CLAUDE.md](CLAUDE.md).
 3. `./mvnw spotless:apply && ./mvnw -B -ntp verify`.
 4. Self-review the diff with [docs/code-review.md](docs/code-review.md)

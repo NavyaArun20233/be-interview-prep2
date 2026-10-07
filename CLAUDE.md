@@ -259,9 +259,11 @@ Rules:
 ## Workflow for every task
 
 Implementation work (steps 1–9) can be delegated to the project agent
-`senior-java-developer` (`.claude/agents/`), pointed at the task's worktree. It stops after
+`senior-java-developer` (local `.claude/agents/`, git-ignored), pointed at the task's worktree. It stops after
 committing locally; the orchestrator/user handles push, PR and merge (steps 10–13).
-`/start-task <type>/<name>` performs step 2.
+`/start-task <type>/<name>` (local `.claude/commands/`) performs step 2. `.claude/` is
+git-ignored, so a new worktree doesn't get it: run Claude Code from the main checkout, or
+copy `.claude/` into the worktree.
 
 1. **Understand**: restate expected behavior; list affected modules, API changes, DB
    changes, dependencies, risks. Ask if a decision can't be inferred.
