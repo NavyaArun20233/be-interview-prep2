@@ -1,7 +1,7 @@
 # Code review guide
 
 Used for self-review before every push and for reviewing pull requests. Coding and
-architecture standards are in [../CLAUDE.md](../CLAUDE.md); this document defines *how*
+architecture standards are in `CLAUDE.md` (local only, git-ignored); this document defines *how*
 to review against them.
 
 ## Procedure

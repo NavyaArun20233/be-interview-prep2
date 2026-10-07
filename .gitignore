@@ -31,8 +31,9 @@ application-local.properties
 *.p12
 *.jks
 
-# Claude Code local config (agents, commands, settings)
+# Claude Code local config (agents, commands, settings, project instructions)
 .claude/
+CLAUDE.md
 
 # Local file-upload storage (app.storage.location default)
 uploads/
