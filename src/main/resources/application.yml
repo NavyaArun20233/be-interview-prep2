@@ -18,3 +18,15 @@ management:
     web:
       exposure:
         include: health,info
+
+app:
+  booking:
+    slot-length: 30m
+    hold-duration: 5m
+    # Clinic hours in the business zone (ClockConfig). Quoted: YAML would read 09:00 as a number.
+    day-start: "09:00"
+    day-end: "17:00"
+    # Housekeeping only: availability and holds treat overdue holds as expired without it.
+    expiry-sweep:
+      enabled: true
+      interval: 1m
