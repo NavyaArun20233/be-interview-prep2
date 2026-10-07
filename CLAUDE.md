@@ -6,17 +6,9 @@ Human-oriented setup lives in [README.md](README.md); the review rubric lives in
 
 ## Repository status
 
-The Spring Boot **project skeleton exists; no features yet**. It contains `Application`,
-`config/ClockConfig` (the `Clock` bean) and `ValidationConfig`, the shared `dto/PageResponse`,
-`application.yml`, an empty `db/migration/` (V1 is reserved for the first feature), and the
-generic error infrastructure in `exception/`: `GlobalExceptionHandler` (RFC 9457 Problem
-Details for validation, malformed JSON, type mismatch, 404/405/415, optimistic locking and
-500), `FieldErrorResponse`, `FieldValidationException` (400 with `errors`), and the abstract
-bases `ResourceNotFoundException` (404), `ResourceConflictException` (409),
-`BusinessRuleViolationException` (422) and `ResourceGoneException` (410). **Features subclass
-these bases** (e.g. `TaskNotFoundException extends ResourceNotFoundException`) instead of
-editing `GlobalExceptionHandler`. Tests: `ApplicationIT` (context + `/actuator/health`
-against Testcontainers PostgreSQL) and `GlobalExceptionHandlerTest`. The stack is fixed:
+A single Spring Boot service (base package `com.interviewprep`) with five features, each
+merged from its own branch, plus this harness (instructions, CI, PR template, review
+guide). The stack is fixed:
 
 | Concern            | Choice                                                        |
 |--------------------|---------------------------------------------------------------|
@@ -25,30 +17,36 @@ against Testcontainers PostgreSQL) and `GlobalExceptionHandlerTest`. The stack i
 | Build              | Maven via the wrapper (`./mvnw`). Never rely on a global `mvn` |
 | Database           | PostgreSQL                                                     |
 | Migrations         | Flyway (`src/main/resources/db/migration`)                     |
-| Tests              | JUnit 5, AssertJ, Mockito, Spring Boot Test, Testcontainers    |
+| Tests              | JUnit 5, AssertJ, Mockito, Spring Boot Test, Testcontainers, Awaitility |
 | Formatting         | Spotless (`./mvnw spotless:apply` / `spotless:check`)          |
 | Hosting / CI       | GitHub (`NavyaArun20233/be-interview-prep2`) / GitHub Actions  |
+
+### Features
+
+| Feature | Endpoints (`/api/v1/...`) | Key classes | Migration / config |
+|---------|---------------------------|-------------|--------------------|
+| **Library** (Q1) | `books` CRUD + `?q=` title/author search; `books/{id}/borrow`, `books/{id}/return` | `BookController` → `BookService`, `LoanService` → `BookRepository`, `LoanRepository` | `V1` `books`, `loans` (partial unique index: one open loan per book) |
+| **Expenses** (Q2) | `expenses` CRUD + `from`/`to`/`category` filters; `expenses/summary?month=yyyy-MM` | `ExpenseController` → `ExpenseService` → `ExpenseRepository` + `ExpenseSpecifications` | `V2` `expenses` (`NUMERIC(12,2)`, `BigDecimal` only) |
+| **File upload** (Q3) | `files` (multipart upload, list, get), `files/{id}/content` (download), delete | `FileController` → `FileService` → `FileTypeDetector` (magic bytes), `FileNameSanitizer`, `FileStorage` (UUID names under the root), `StoredFileRepository` | `V3` `stored_files`; `app.storage` (`StorageProperties`), multipart limits |
+| **Rate limiting** (Q4) | `quotes/random` (needs `X-API-Key`) | `RateLimitInterceptor` (registered by `RateLimitWebConfig` on `/api/v1/quotes/**`) → `RateLimiterService` (in-memory sliding window per key); `QuoteController` → `QuoteService` | none; `app.rate-limit` (`RateLimitProperties`) |
+| **Booking** (Q5) | `doctors/{id}/slots?date=`; `bookings` (hold), `bookings/{id}`, `bookings/{id}/confirm`, `bookings/{id}/cancel` | `BookingController`, `DoctorController` → `BookingService` → `BookingRepository`, `DoctorRepository`; `BookingConfirmationListener` (after-commit, `@Async`) → `BookingNotifier`; `BookingExpiryJob` (`@Scheduled`) | `V5` `doctors` (seeded), `bookings` (partial unique index: one active booking per slot); `app.booking` (`BookingProperties`, `BookingConfig` enables async + scheduling) |
+
+Shared infrastructure: `config/ClockConfig` (`Clock` bean, business zone `Asia/Kolkata`) and
+`ValidationConfig`; `dto/PageResponse`; `exception/GlobalExceptionHandler` (RFC 9457
+Problem Details) with the abstract bases `ResourceNotFoundException` (404),
+`ResourceConflictException` (409), `ResourceGoneException` (410) and
+`BusinessRuleViolationException` (422), plus `FieldValidationException` (400 with
+`errors`). **Feature exceptions subclass these bases**; a status no base covers either
+extends Spring's `ErrorResponseException` (as `RateLimitExceededException` 429 and
+`MissingApiKeyException` 401 do) or gets one small handler block in
+`GlobalExceptionHandler` (as the upload 413/415/multipart handlers do).
+
+Migrations are `V1`, `V2`, `V3`, `V5`. There is no `V4` (rate limiting needs no table);
+Flyway allows the gap. The next migration is `V6`.
 
 **Before trusting anything in this file, check it against the repo.** If the code
 contradicts this document, the code wins. Flag the discrepancy and update this file
 in the same PR.
-
-### Bootstrapping the project (first code PR only)
-
-The first PR that adds code must create a build that satisfies the CI contract
-(`./mvnw -B -ntp verify` runs every gate):
-
-- Generated from Spring Initializr (Java 21, base package `com.interviewprep`), with the
-  Maven wrapper committed (`mvnw`, `mvnw.cmd`, `.mvn/wrapper/`). Generate the wrapper;
-  don't hand-write it.
-- `spring-boot-starter-web`, `-validation`, `-data-jpa`, `-actuator`; `flyway-core` +
-  `flyway-database-postgresql`; `postgresql` driver.
-- Test deps: `spring-boot-starter-test`, `spring-boot-testcontainers`, Testcontainers
-  PostgreSQL + JUnit Jupiter modules.
-- `maven-surefire-plugin` runs `*Test` (unit/slice); `maven-failsafe-plugin` runs `*IT`
-  (integration) in `integration-test`/`verify`.
-- `spotless-maven-plugin` (palantir-java-format) with `check` bound to the `verify` phase.
-- `spring.jpa.hibernate.ddl-auto=validate` and `spring.jpa.open-in-view=false`.
 
 ## Architecture
 
@@ -60,20 +58,22 @@ matching layers, not a new top-level package:
 src/main/java/com/interviewprep/
   Application.java          # @SpringBootApplication entry point
   controller/               # REST controllers: HTTP only (mapping, validation, DTO <-> service)
-  service/                  # business logic, transaction boundaries
-  repository/               # Spring Data JPA interfaces (+ Specifications)
+                            #   + MVC wiring that depends on services (RateLimitInterceptor, RateLimitWebConfig)
+  service/                  # business logic, transaction boundaries, event listeners, scheduled jobs
+  repository/               # Spring Data JPA interfaces (+ Specifications, projection records)
   entity/                   # JPA entities and their enums
   dto/                      # request/response records; one sub-package per feature
     PageResponse            #   shared DTOs at the root
-    <feature>/
+    library/  expense/  file/  quote/  booking/
   exception/                # GlobalExceptionHandler, base + feature exceptions
-  config/                   # @Configuration and @ConfigurationProperties
-  validation/               # custom Bean Validation constraints
+  config/                   # @Configuration and @ConfigurationProperties records (app.*)
+  validation/               # custom Bean Validation constraints (none yet; create when needed)
 src/main/resources/
   application.yml           # defaults; secrets only via env vars
   db/migration/V<n>__<desc>.sql # Flyway
 src/test/java/com/interviewprep/
-  controller/  service/  config/  validation/   # *Test = unit / @WebMvcTest slice, same package as the class
+  MutableClock, TestcontainersConfiguration, TestApplication   # shared test support
+  controller/  service/  config/  exception/    # *Test = unit / @WebMvcTest slice, same package as the class
   integration/                                  # *IT = full app + Testcontainers PostgreSQL
 ```
 
@@ -155,7 +155,9 @@ Layer rules:
 
 ## Security
 
-No authentication is configured yet. When Spring Security is added: deny by default,
+No user authentication is configured. The only client identification is the
+`X-API-Key` header on `/api/v1/quotes/**`, used to rate-limit per client (any non-blank key
+is accepted; missing key → 401). When Spring Security is added: deny by default,
 authorize every endpoint explicitly, render 401/403 as Problem Details, take signing keys
 and credentials only from environment variables, test both allowed and forbidden paths,
 and never weaken an existing rule as a side effect of another change. Update this section
@@ -247,6 +249,12 @@ Rules:
   says "depends on #n").
 - **Stay inside your worktree.** All edits, builds and commits for a task happen under
   its worktree path. Never edit files in another task's worktree or in the main checkout.
+- **Shared config across parallel branches:** keep all custom settings under the single
+  `app:` key in `application.yml` (`app.<feature>:` nested inside it). Branches that each
+  append their own block at the end of the file conflict on merge, and two top-level
+  `app:` keys in the same YAML document are invalid (the upload settings currently live in
+  a separate `---` document, which is valid). When bringing `main` into a branch, combine them into one
+  `app:` block and re-run `./mvnw -B -ntp verify`.
 - **Builds are per worktree** (`target/` is local to each). Integration tests in parallel
   worktrees are fine because each Testcontainers run gets its own PostgreSQL container;
   `spring-boot:run` in two worktrees at once needs different `SERVER_PORT`s.
@@ -259,9 +267,11 @@ Rules:
 ## Workflow for every task
 
 Implementation work (steps 1–9) can be delegated to the project agent
-`senior-java-developer` (`.claude/agents/`), pointed at the task's worktree. It stops after
+`senior-java-developer` (local `.claude/agents/`, git-ignored), pointed at the task's worktree. It stops after
 committing locally; the orchestrator/user handles push, PR and merge (steps 10–13).
-`/start-task <type>/<name>` performs step 2.
+`/start-task <type>/<name>` (local `.claude/commands/`) performs step 2. `.claude/` is
+git-ignored, so a new worktree doesn't get it: run Claude Code from the main checkout, or
+copy `.claude/` into the worktree.
 
 1. **Understand**: restate expected behavior; list affected modules, API changes, DB
    changes, dependencies, risks. Ask if a decision can't be inferred.
