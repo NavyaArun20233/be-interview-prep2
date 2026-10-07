@@ -19,7 +19,18 @@ management:
       exposure:
         include: health,info
 
-# Per-API-key quota for /api/v1/quotes/** (env APP_RATELIMIT_LIMIT / APP_RATELIMIT_WINDOW).
-app.rate-limit:
-  limit: 10
-  window: 1m
+app:
+  # Per-API-key quota for /api/v1/quotes/** (env APP_RATELIMIT_LIMIT / APP_RATELIMIT_WINDOW).
+  rate-limit:
+    limit: 10
+    window: 1m
+  booking:
+    slot-length: 30m
+    hold-duration: 5m
+    # Clinic hours in the business zone (ClockConfig). Quoted: YAML would read 09:00 as a number.
+    day-start: "09:00"
+    day-end: "17:00"
+    # Housekeeping only: availability and holds treat overdue holds as expired without it.
+    expiry-sweep:
+      enabled: true
+      interval: 1m
