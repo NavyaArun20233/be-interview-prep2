@@ -34,3 +34,6 @@ application-local.properties
 # Claude Code: agents/ and commands/ are committed so every worktree has them;
 # personal settings stay local.
 .claude/settings.local.json
+
+# Local file-upload storage (app.storage.location default)
+uploads/

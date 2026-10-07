@@ -22,6 +22,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.exc.MismatchedInputException;
@@ -73,6 +76,40 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(
                 ex, HttpStatus.CONFLICT, "The resource was modified concurrently; reload it and try again", request);
     }
+
+    // --- File uploads: 413 too large, 415 disallowed type, 400 missing part / malformed multipart ---
+
+    @ExceptionHandler(FileTooLargeException.class)
+    ResponseEntity<Object> handleFileTooLarge(FileTooLargeException ex, WebRequest request) {
+        return problem(ex, HttpStatus.CONTENT_TOO_LARGE, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(UnsupportedFileTypeException.class)
+    ResponseEntity<Object> handleUnsupportedFileType(UnsupportedFileTypeException ex, WebRequest request) {
+        return problem(ex, HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage(), request);
+    }
+
+    /** Rejected by the multipart parser ({@code spring.servlet.multipart.max-file-size}/{@code max-request-size}). */
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        return problem(ex, HttpStatus.CONTENT_TOO_LARGE, "Uploaded file exceeds the maximum allowed size", request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMissingServletRequestPart(
+            MissingServletRequestPartException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        FieldErrorResponse error = new FieldErrorResponse(ex.getRequestPartName(), "is required");
+        return validationProblem(ex, List.of(error), headers, request);
+    }
+
+    /** Any other multipart failure, e.g. a truncated body or a non-multipart request to a multipart endpoint. */
+    @ExceptionHandler(MultipartException.class)
+    ResponseEntity<Object> handleMultipart(MultipartException ex, WebRequest request) {
+        return problem(ex, HttpStatus.BAD_REQUEST, "Request is not a valid multipart upload", request);
+    }
+
+    // --- End file uploads ---
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<Object> handleUnexpected(Exception ex, WebRequest request) {

@@ -34,3 +34,17 @@ app:
     expiry-sweep:
       enabled: true
       interval: 1m
+
+---
+# File uploads (/api/v1/files). A separate YAML document so this block stays self-contained.
+app:
+  storage:
+    location: ${APP_STORAGE_LOCATION:uploads}
+    max-file-size: 5MB
+spring:
+  servlet:
+    multipart:
+      # Rejects oversized uploads while parsing (413) instead of buffering them; the service re-checks the limit.
+      max-file-size: ${app.storage.max-file-size}
+      # Room for one file plus multipart framing; raise together with app.storage.max-file-size.
+      max-request-size: 6MB
