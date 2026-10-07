@@ -20,6 +20,10 @@ management:
         include: health,info
 
 app:
+  # Per-API-key quota for /api/v1/quotes/** (env APP_RATELIMIT_LIMIT / APP_RATELIMIT_WINDOW).
+  rate-limit:
+    limit: 10
+    window: 1m
   booking:
     slot-length: 30m
     hold-duration: 5m
