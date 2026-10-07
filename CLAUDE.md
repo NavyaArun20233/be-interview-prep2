@@ -278,9 +278,11 @@ committing locally; the orchestrator/user handles push, PR and merge (steps 10â€
 9. **Commit**: conventional commit (below), staged files reviewed with
    `git diff --cached`.
 10. **Push**: `git push -u origin <branch>`.
-11. **PR**: `gh pr create --base main` using `.github/pull_request_template.md`, every
-    section filled in (write "None" rather than deleting). **Problem**, **Approach**,
-    **Decisions & Trade-offs** and **How to Test** are mandatory and must be specific.
+11. **PR**: `gh pr create --base main` using `.github/pull_request_template.md`, exactly
+    its four sections, all specific: **Problem** (what the PR solves, 1â€“2 lines),
+    **Approach** (key classes and how a request flows through them), **Decisions &
+    trade-offs** (what was chosen and why over the alternatives), **How to test**
+    (commands, sample requests, test classes).
     Do not add tool attribution lines (e.g. "Generated with Claude Code") to PR descriptions.
 12. **Follow up**: `gh pr checks <n> --watch`; read review comments; fix in the same
     worktree, re-run step 7, push new commits (no force-push).
